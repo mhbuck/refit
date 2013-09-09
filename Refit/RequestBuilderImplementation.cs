@@ -24,7 +24,7 @@ namespace Refit
     public class RequestBuilderImplementation : IRequestBuilder
     {
         readonly Type targetType;
-        readonly Dictionary<string, RestMethodInfo> interfaceHttpMethods;
+        readonly Dictionary<string, IRestMethodInfo> interfaceHttpMethods;
 
         public RequestBuilderImplementation(Type targetInterface)
         {
@@ -33,15 +33,10 @@ namespace Refit
             }
 
             targetType = targetInterface;
-            interfaceHttpMethods = targetInterface.GetMethods()
-                .SelectMany(x => {
-                    var attrs = x.GetCustomAttributes(true);
-                    var hasHttpMethod = attrs.OfType<HttpMethodAttribute>().Any();
-                    if (!hasHttpMethod) return Enumerable.Empty<RestMethodInfo>();
 
-                    return EnumerableEx.Return(new RestMethodInfo(targetInterface, x));
-                })
-                .ToDictionary(k => k.Name, v => v);
+            //TODO - Just a placeholder until the correct implementation is done
+            IRestMethodResolver methodResolver = new DefaultRestMethodResolver();
+            interfaceHttpMethods = methodResolver.GetInterfaceRestMethodInfo(targetInterface);
         }
 
         public IEnumerable<string> InterfaceHttpMethods {
@@ -144,7 +139,7 @@ namespace Refit
             }
         }
 
-        Func<HttpClient, object[], Task> buildVoidTaskFuncForMethod(RestMethodInfo restMethod)
+        Func<HttpClient, object[], Task> buildVoidTaskFuncForMethod(IRestMethodInfo restMethod)
         {
             var factory = BuildRequestFactoryForMethod(restMethod.Name);
                         
@@ -156,7 +151,7 @@ namespace Refit
             };
         }
 
-        Func<HttpClient, object[], Task<T>> buildTaskFuncForMethod<T>(RestMethodInfo restMethod)
+        Func<HttpClient, object[], Task<T>> buildTaskFuncForMethod<T>(IRestMethodInfo restMethod)
             where T : class
         {
             var factory = BuildRequestFactoryForMethod(restMethod.Name);
@@ -179,7 +174,7 @@ namespace Refit
             };
         }
 
-        Func<HttpClient, object[], IObservable<T>> buildRxFuncForMethod<T>(RestMethodInfo restMethod)
+        Func<HttpClient, object[], IObservable<T>> buildRxFuncForMethod<T>(IRestMethodInfo restMethod)
             where T : class
         {
             var taskFunc = buildTaskFuncForMethod<T>(restMethod);

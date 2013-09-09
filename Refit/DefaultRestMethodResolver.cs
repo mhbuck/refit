@@ -9,11 +9,43 @@ using System.Threading.Tasks;
 
 namespace Refit
 {
-    public class DefaultRestMethodResolver
+    public interface IRestMethodInfo
     {
+        string Name { get; set; }
+        Type Type { get; set; }
+        MethodInfo MethodInfo { get; set; }
+        HttpMethod HttpMethod { get; set; }
+        string RelativePath { get; set; }
+        Dictionary<int, string> ParameterMap { get; set; }
+        Tuple<BodySerializationMethod, int> BodyParameterInfo { get; set; }
+        Dictionary<int, string> QueryParameterMap { get; set; }
+        Type ReturnType { get; set; }
+        Type SerializedReturnType { get; set; }
     }
 
-    public class RestMethodInfo
+    public interface IRestMethodResolver
+    {
+        // Still unsure if passing in the type is better or MethodInfo per item. Will see when get to implementing another
+        Dictionary<string, IRestMethodInfo> GetInterfaceRestMethodInfo(Type targetInterface); 
+    }
+
+    public class DefaultRestMethodResolver : IRestMethodResolver
+    {
+        public Dictionary<string, IRestMethodInfo> GetInterfaceRestMethodInfo(Type targetInterface)
+        {
+            return targetInterface.GetMethods()
+                .SelectMany(x => {
+                        var attrs = x.GetCustomAttributes(true);
+                        var httpMethod = attrs.OfType<HttpMethodAttribute>().FirstOrDefault();
+                        if (httpMethod == null) return Enumerable.Empty<IRestMethodInfo>();
+
+                        return EnumerableEx.Return(new RestMethodInfo(targetInterface, x));
+                    })
+                .ToDictionary(k => k.Name, v => v);
+        }
+    }
+
+    public class RestMethodInfo : IRestMethodInfo
     {
         public string Name { get; set; }
         public Type Type { get; set; }
